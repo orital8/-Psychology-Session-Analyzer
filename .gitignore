@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# React / Node modules
+node_modules/
+build/
+dist/
+.npm
+package-lock.json # Optional: keep this if you want to lock versions, ignore if you don't
+
+# Environment Variables (CRITICAL for Firebase/API keys)
+.env
+.env.local
+.env.*.local
+
+# VS Code / Windows / Mac System Files
+.vscode/
+*.log
+Thumbs.db
+.DS_Store
