@@ -17,32 +17,29 @@ TRANSCRIPT_URL = 'https://api.assemblyai.com/v2/transcript'
 HEADERS = {"authorization": settings.ASSEMBLYAI_API_KEY}
 
 def upload_file_to_api(file_path):
-    """Streams file to AssemblyAI"""
     logger.info("Uploading audio to AssemblyAI...")
     def read_file(path):
         with open(path, 'rb') as f:
             while True:
-                data = f.read(3145728) # Read in 3MB chunks
+                data = f.read(5242880) 
                 if not data: break
                 yield data
 
     response = requests.post(UPLOAD_URL, headers=HEADERS, data=read_file(file_path))
-    response.raise_for_status() # Crash if API rejects us
+    response.raise_for_status()
     return response.json()['upload_url']
 
 def start_transcription(audio_url):
-    """Starts job with Speaker Diarization enabled"""
     logger.info("Starting transcription with Speaker Diarization...")
     json_payload = {
         "audio_url": audio_url,
-        "speaker_labels": True 
+        "speaker_labels": True
     }
     response = requests.post(TRANSCRIPT_URL, json=json_payload, headers=HEADERS)
     response.raise_for_status()
     return response.json()['id']
 
 def wait_for_completion(transcript_id):
-    """Polls API until done"""
     polling_endpoint = f"{TRANSCRIPT_URL}/{transcript_id}"
     
     while True:
@@ -65,6 +62,8 @@ def process_audio(ch, method, properties, body):
         
         video_id = message['video_id']
         audio_filename = message['audio_filename']
+        # FIX: Capture user_id to pass forward
+        user_id = message.get('user_id', 'anonymous')
         
         local_audio_path = f"/tmp/{audio_filename}"
         local_json_path = f"/tmp/{video_id}.json"
@@ -76,22 +75,23 @@ def process_audio(ch, method, properties, body):
         logger.info(f"Downloading {audio_filename}...")
         minio.download_file(audio_filename, local_audio_path)
 
-        # 2. Transcribe via AssemblyAI
+        # 2. Transcribe
         upload_url = upload_file_to_api(local_audio_path)
         transcript_id = start_transcription(upload_url)
         result_json = wait_for_completion(transcript_id)
 
-        # 3. Save Result locally
+        # 3. Save Result
         with open(local_json_path, 'w') as f:
             json.dump(result_json, f)
 
-        # 4. Upload JSON to MinIO
+        # 4. Upload JSON
         logger.info("Uploading JSON transcript...")
         json_filename = f"{video_id}.json"
         minio.upload_file(local_json_path, json_filename, "application/json")
 
         # 5. Publish Event
         next_event = {
+            "user_id": user_id, # FIX: Pass it forward
             "video_id": video_id,
             "transcript_filename": json_filename,
             "status": "transcribed"

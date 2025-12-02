@@ -1,7 +1,7 @@
 import logging
 import uuid
 import time
-from fastapi import FastAPI, UploadFile, HTTPException, Form
+from fastapi import FastAPI, UploadFile, HTTPException, Form, File
 from contextlib import asynccontextmanager
 from minio_utils import MinioClient
 from rabbitmq_utils import RabbitMQClient
@@ -21,7 +21,6 @@ async def lifespan(app: FastAPI):
     logger.info("Waiting for infrastructure to be ready...")
     time.sleep(5) 
     
-    # We allow this to crash if infra is missing (Let It Crash)
     minio_client = MinioClient()
     rabbitmq_client = RabbitMQClient()
     
@@ -34,9 +33,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Update: Accept user_id as a Form field
 @app.post("/upload")
-async def upload_video(user_id: str = Form(...), file: UploadFile = Form(...)):
+async def upload_video(user_id: str = Form(...), file: UploadFile = File(...)):
     # Validation
     if not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="File must be a video")
@@ -54,7 +52,7 @@ async def upload_video(user_id: str = Form(...), file: UploadFile = Form(...)):
     # Upload to MinIO
     minio_client.upload_file(content, new_filename, file.content_type)
     
-    # Publish Event (Now includes user_id)
+    # Publish Event
     event = {
         "user_id": user_id,
         "video_id": session_id,
