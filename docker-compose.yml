@@ -2,8 +2,6 @@ version: '3.8'
 
 services:
   # --- INFRASTRUCTURE ---
-  
-  # 1. Message Broker (Queues)
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq_broker
@@ -22,7 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Object Storage (Files)
   minio:
     image: minio/minio
     container_name: minio_storage
@@ -39,7 +36,6 @@ services:
     networks:
       - therapy_network
 
-  # 3. Caching Database (New!)
   redis:
     image: redis:alpine
     container_name: redis_cache
@@ -54,9 +50,18 @@ services:
       timeout: 3s
       retries: 5
 
+  mongo:
+    image: mongo:latest
+    container_name: mongo_db
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo_data:/data/db
+    networks:
+      - therapy_network
+
   # --- MICROSERVICES ---
-  
-  # Service 1: Uploads Video
   upload_service:
     build: 
       context: ./upload_service
@@ -81,7 +86,6 @@ services:
     labels:
       com.datadoghq.ad.logs: '[{"source": "fastapi", "service": "upload-service"}]'
 
-  # Service 2: Extracts Audio
   audio_extractor:
     build:
       context: ./audio_extractor
@@ -104,7 +108,6 @@ services:
     labels:
       com.datadoghq.ad.logs: '[{"source": "python", "service": "audio-extractor"}]'
 
-  # Service 3: Transcription
   transcription_service:
     build:
       context: ./transcription_service
@@ -128,7 +131,6 @@ services:
     labels:
       com.datadoghq.ad.logs: '[{"source": "python", "service": "transcription-service"}]'
 
-  # Service 4: LLM Analyzer (New!)
   analyzer_service:
     build:
       context: ./analyzer_service
@@ -139,6 +141,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mongo:
+        condition: service_started
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - RABBITMQ_HOST=rabbitmq
@@ -146,6 +150,7 @@ services:
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
       - REDIS_HOST=redis
+      - MONGO_URI=mongodb://mongo:27017
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
@@ -155,7 +160,28 @@ services:
     labels:
       com.datadoghq.ad.logs: '[{"source": "python", "service": "analyzer-service"}]'
 
-  # --- OBSERVABILITY ---
+  query_service:
+    build:
+      context: ./query_service
+    container_name: query_service
+    restart: on-failure
+    ports:
+      - "8001:8001"
+    depends_on:
+      - minio
+      - mongo
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY} # Added for Advisor
+      - MONGO_URI=mongodb://mongo:27017  # Added for History
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+    networks:
+      - therapy_network
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "fastapi", "service": "query-service"}]'
+
   datadog:
     image: gcr.io/datadoghq/agent:7
     container_name: datadog_agent

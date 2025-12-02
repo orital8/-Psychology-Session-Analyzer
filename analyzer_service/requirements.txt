@@ -1,5 +1,6 @@
 pika
 minio
-openai
+openai>=1.55.0
 redis
+pymongo
 pydantic-settings

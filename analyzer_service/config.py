@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
     
+    MONGO_URI: str = "mongodb://mongo:27017" # Default inside Docker
+    
     RABBITMQ_HOST: str = "rabbitmq"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: str
@@ -21,7 +23,7 @@ class Settings(BaseSettings):
     MINIO_ROOT_USER: str
     MINIO_ROOT_PASSWORD: str
     MINIO_BUCKET_NAME: str = "therapy-videos"
-    MINIO_ANALYSIS_BUCKET: str = "therapy-analysis" # We save results here
+    MINIO_ANALYSIS_BUCKET: str = "therapy-analysis"
 
     class Config:
         env_file = ".env"
