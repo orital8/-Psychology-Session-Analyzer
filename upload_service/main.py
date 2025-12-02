@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from minio_utils import MinioClient
 from rabbitmq_utils import RabbitMQClient
 
-# Configure Logging (INFO level shows startup, ERROR shows crashes)
+# Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("upload_service")
 
@@ -21,8 +21,6 @@ async def lifespan(app: FastAPI):
     logger.info("Waiting for infrastructure to be ready...")
     time.sleep(5) 
     
-    # We allow this to crash if infra is missing. 
-    # Docker will restart the service until it works.
     minio_client = MinioClient()
     rabbitmq_client = RabbitMQClient()
     
@@ -37,14 +35,11 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/upload")
 async def upload_video(file: UploadFile):
-    # Validation is fine, keep specific logic
+    # Validation
     if not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="File must be a video")
 
-    # NO TRY/EXCEPT HERE. 
-    # If MinIO or RabbitMQ fails, Python will raise the exception,
-    # FastAPI will log the stack trace to Datadog, and return 500 to the user.
-    
+    # Generate unique ID
     session_id = str(uuid.uuid4())
     file_ext = file.filename.split(".")[-1]
     new_filename = f"{session_id}.{file_ext}"
