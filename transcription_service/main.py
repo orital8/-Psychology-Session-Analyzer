@@ -62,7 +62,6 @@ def process_audio(ch, method, properties, body):
         
         video_id = message['video_id']
         audio_filename = message['audio_filename']
-        # FIX: Capture user_id to pass forward
         user_id = message.get('user_id', 'anonymous')
         
         local_audio_path = f"/tmp/{audio_filename}"

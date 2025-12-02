@@ -8,14 +8,19 @@ class MongoClientWrapper:
         self.collection = self.db["session_analysis"]
 
     def get_user_history(self, user_id):
-        """Fetches all past analyses for this user to build context"""
-        # We only need the analysis part, specifically emotions/topics
+        """Fetches all past analyses for this user to build context for the Advisor"""
         cursor = self.collection.find({"user_id": user_id}, {"analysis": 1, "_id": 0})
         history = []
         for doc in cursor:
             if "analysis" in doc:
                 history.append(doc["analysis"])
         return history
+
+    def get_user_videos(self, user_id):
+        """Fetches list of video IDs associated with a specific user"""
+        cursor = self.collection.find({"user_id": user_id}, {"video_id": 1, "_id": 0})
+        videos = [doc["video_id"] for doc in cursor if "video_id" in doc]
+        return videos
 
     def close(self):
         self.client.close()
