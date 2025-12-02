@@ -24,3 +24,14 @@ package-lock.json # Optional: keep this if you want to lock versions, ignore if 
 *.log
 Thumbs.db
 .DS_Store
+
+# MongoDB
+/data/db/
+/data/configdb/
+/dump/
+/journal/
+*.ns
+*.wt
+WiredTiger*
+*.bson
+mongod.lock
