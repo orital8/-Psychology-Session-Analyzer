@@ -95,4 +95,4 @@ DD_API_KEY=              # Datadog (optional)
 
 ---
 
-**Author:** Ori Tal | **License:** MIT
+**Author:** Ori Tal | **License:** Ori Tal
